@@ -103,6 +103,26 @@ export class AppService {
       throw error;
     }
   }
+
+  async getTokenBalances(address): Promise<any[]> {
+    try {
+      const balances = await this.alchemy.core.getTokenBalances(address);
+      const nonZeroBalances = balances.tokenBalances.filter((token) => {
+        return parseInt(token.tokenBalance) !== 0;
+      });
+
+      let tokens = []
+
+      for (let token of nonZeroBalances) {
+        const metadata = await this.alchemy.core.getTokenMetadata(token.contractAddress);
+        tokens.push(metadata);
+      }
+      return tokens;
+    }
+    catch(error) {
+      throw error;
+    }
+  }
 }
 
 

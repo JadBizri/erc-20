@@ -1,4 +1,4 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Param, Post } from '@nestjs/common';
 import { AppService } from '../services/app.service';
 
 @Controller()
@@ -23,5 +23,10 @@ export class AppController {
   @Post('store-tokens')
   storeTokens() {
     return this.appService.storeTokens();
+  }
+
+  @Post('token/balances/:address')
+  getTokenBalances(@Param('address') address: string) {
+    return this.appService.getTokenBalances(address)
   }
 }
