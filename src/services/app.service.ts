@@ -76,7 +76,7 @@ export class AppService {
     }
   }
 
-  async storeTokens() {
+  async storeTokens(): Promise<string> {
     try {
       const tokens = await this.getErcTransfers();
       const formattedTokens = tokens.map(token => ({
@@ -97,6 +97,7 @@ export class AppService {
         data: formattedTokens,
         skipDuplicates: true, // Avoid duplicate entries
       });
+      return "Successfully fetched and stored ERC20 token transfers"
     }
     catch(error) {
       throw error;
