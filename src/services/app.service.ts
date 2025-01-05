@@ -79,7 +79,6 @@ export class AppService {
   async storeTokens() {
     try {
       const tokens = await this.getErcTransfers();
-      console.log("HERE: " + tokens.length)
       const formattedTokens = tokens.map(token => ({
         blockNum: token.blockNum,
         uniqueId: token.uniqueId,
