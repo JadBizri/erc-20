@@ -5,7 +5,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://postgres:mypassword@db:5432/mydatabase
+      DATABASE_URL: postgresql://postgres:password@db:5432/tokens
     depends_on:
       - db
 
