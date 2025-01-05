@@ -19,4 +19,9 @@ export class AppController {
   getErcTransfers() {
     return this.appService.getErcTransfers();
   }
+
+  @Post('store-tokens')
+  storeTokens() {
+    return this.appService.storeTokens();
+  }
 }

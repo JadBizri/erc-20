@@ -8,6 +8,7 @@ import {
   AssetTransfersParams,
 } from 'alchemy-sdk';
 import Moralis from 'moralis';
+import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class AppService {
@@ -15,6 +16,7 @@ export class AppService {
   private readonly moralisApiKey: string = this.configService.get<string>('MORALIS_API_KEY')
   private readonly alchemyApiKey: string = this.configService.get<string>('ALCHEMY_API_KEY')
   private readonly threeMonthsInMs: number = 7776000000;
+  private prisma = new PrismaClient();
 
   constructor(private configService: ConfigService) {
     const settings = {
@@ -57,6 +59,7 @@ export class AppService {
     }
   }
 
+  //only getting most recent 1000
   async getErcTransfers(): Promise<any[]> {
     try {
       const firstBlock = await this.getFirstBlock();
@@ -72,4 +75,57 @@ export class AppService {
       throw error;
     }
   }
+
+  async storeTokens() {
+    try {
+      const tokens = await this.getErcTransfers();
+      console.log("HERE: " + tokens.length)
+      const formattedTokens = tokens.map(token => ({
+        blockNum: token.blockNum,
+        uniqueId: token.uniqueId,
+        hash: token.hash,
+        from: token.from,
+        to: token.to,
+        value: token.value || null,
+        tokenId: token.tokenId || null,
+        asset: token.asset || null,
+        rawContract: token.rawContract,
+        metadata: token.metadata || null,
+      }));
+      await this.prisma.token.deleteMany({})
+      // Bulk insert tokens into the database
+      await this.prisma.token.createMany({
+        data: formattedTokens,
+        skipDuplicates: true, // Avoid duplicate entries
+      });
+    }
+    catch(error) {
+      throw error;
+    }
+  }
 }
+
+
+// async getErcTransfers(): Promise<any[]> {
+//   try {
+//     const firstBlock = await this.getFirstBlock();
+//     const params: AssetTransfersParams = {
+//       fromBlock: '0x' + firstBlock.number.toString(16),
+//       category: [AssetTransfersCategory.ERC20],
+//     };
+//     let response = await this.alchemy.core.getAssetTransfers(params);
+//     let transfers = response.transfers;
+//     let count = 1;
+//     while(response.pageKey) {
+//       params.pageKey = response.pageKey;
+//       response = await this.alchemy.core.getAssetTransfers(params);
+//       transfers = transfers.concat(response.transfers)
+//       count++;
+//       console.log(count)
+//     }
+//     return transfers;
+//   } catch (error) {
+//     console.error('Error fetching ERC-20 transfers:', error);
+//     throw error;
+//   }
+// }
