@@ -17,6 +17,7 @@ export class AppService {
     return await this.provider.send('eth_getBlockByNumber', ["0x13f447e", false])
   }
 
+
   //binary search function that gets the first block created 3 months ago
   async getFirstBlock(): Promise<Block> {
     try{
@@ -24,17 +25,12 @@ export class AppService {
       let right = await this.provider.getBlockNumber(); //latest block number
       const targetTimestamp = await this.getBlockTimestampByNumber(right) - this.threeMonthsInSecs; //timestamp of 3 months ago
       
-      let targetBlock;
+      let targetBlock: Block;
 
       while(left <= right) {
         const mid = Math.floor((left + right) / 2)
-        let midTimestamp;
-
-        await this.provider.send('eth_getBlockByNumber', ['0x' + (mid).toString(16), false])
-        .then((block) => {
-          targetBlock = block
-          midTimestamp = block.timestamp
-        })
+        targetBlock = await this.provider.send('eth_getBlockByNumber', ['0x' + (mid).toString(16), false]);
+        const midTimestamp = targetBlock.timestamp;
 
         if(midTimestamp === targetTimestamp) {
           return targetBlock;
@@ -42,7 +38,7 @@ export class AppService {
 
         if (midTimestamp < targetTimestamp) {
           left = mid + 1;
-        } else right = mid - 1
+        } else right = mid - 1;
       }
       return targetBlock;
     }
@@ -54,11 +50,11 @@ export class AppService {
   async getBlockTimestampByNumber(blockNum: number): Promise<number> {
     return await this.provider.send('eth_getBlockByNumber', ['0x' + (blockNum).toString(16), false])
     .then((block) => {
-      return parseInt(block.timestamp, 16); 
+      return block.timestamp; 
     })
     .catch((err) => {
       console.error("ERROR: ", err)
-      throw err
+      throw err;
     })
   }
 }
