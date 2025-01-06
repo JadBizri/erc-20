@@ -5,28 +5,13 @@ import { AppService } from '../services/app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get('latest-block')
+  @Get('block')
   getLatestBlock() {
-    return this.appService.getTheLatestBlock();
+    return this.appService.getBlock();
   }
 
   @Get('first-block')
-  getFirstBlock() {
+  getBlockByNum() {
     return this.appService.getFirstBlock();
-  }
-
-  @Post('erc-transfers')
-  getErcTransfers() {
-    return this.appService.getErcTransfers();
-  }
-
-  @Post('store-tokens')
-  storeTokens() {
-    return this.appService.storeTokens();
-  }
-
-  @Post('token/balances/:address')
-  getTokenBalances(@Param('address') address: string) {
-    return this.appService.getTokenBalances(address)
   }
 }
