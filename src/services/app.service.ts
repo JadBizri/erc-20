@@ -54,12 +54,11 @@ export class AppService {
   async getBlockTimestampByNumber(blockNum: number): Promise<number> {
     return await this.provider.send('eth_getBlockByNumber', ['0x' + (blockNum).toString(16), false])
     .then((block) => {
-      const res = parseInt(block.timestamp, 16); 
-      return res
+      return parseInt(block.timestamp, 16); 
     })
     .catch((err) => {
       console.error("ERROR: ", err)
-      return -1
+      throw err
     })
   }
 }
