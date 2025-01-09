@@ -64,12 +64,12 @@ export class AppService implements OnModuleInit {
   async storeLogs(logs: Array<Log>): Promise<void> {
     try {
       const transfers = await logs.map((log) => ({
-        transactionHash: log.transactionHash,
+        transactionHash: ethers.stripZerosLeft(log.transactionHash),
         blockNumber: log.blockNumber,
         tokenAddress: log.address,
-        fromAddress: log.topics[1],
-        toAddress: log.topics[2],
-        amount: log.data,
+        fromAddress: log.topics[1] ? ethers.stripZerosLeft(log.topics[1]) : null,
+        toAddress: log.topics[2] ? ethers.stripZerosLeft(log.topics[2]) : null,
+        amount: log.data ? ethers.stripZerosLeft(log.data) : null,
       }));
 
       await this.prisma.transfer.createMany({
