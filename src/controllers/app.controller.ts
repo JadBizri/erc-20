@@ -14,4 +14,9 @@ export class AppController {
   getBlockByNum() {
     return this.appService.getFirstBlock();
   }
+
+  @Get('transfers')
+  getErcTransfers() {
+    return this.appService.fetchErcTransferLogs();
+  }
 }

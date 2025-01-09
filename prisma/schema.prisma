@@ -14,14 +14,19 @@ datasource db {
 }
 
 model Token {
-  blockNum    String
-  uniqueId    String @id
-  hash        String
-  from        String
-  to          String
-  value       Decimal?
-  tokenId     String?
-  asset       String?
-  rawContract Json
-  metadata    Json?
+  id          String    @id @default(uuid())
+  address     String    @unique
+  name        String?
+  symbol      String?
+  transfers   Transfer[]
+}
+
+model Transfer {
+  transactionHash  String   @unique @id
+  blockNumber      Int
+  fromAddress      String
+  toAddress        String
+  amount           BigInt
+  tokenAddress     String
+  token            Token    @relation(fields: [tokenAddress], references: [address])
 }

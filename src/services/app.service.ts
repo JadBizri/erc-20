@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
-import { Block, ethers } from 'ethers';
+import { AbiCoder, Block, ethers, Interface, Log } from 'ethers';
 
 @Injectable()
 export class AppService {
@@ -17,6 +17,29 @@ export class AppService {
     return await this.provider.send('eth_getBlockByNumber', ["0x13f447e", false])
   }
 
+
+  async fetchErcTransferLogs(): Promise<Array<Log>> {
+    try {
+      const event = ethers.id("Transfer(address,address,uint256)");
+
+      const fromBlock = (await this.getFirstBlock()).number;
+      const toBlock = parseInt(fromBlock.toString()) + 100
+
+      const logs = await this.provider.getLogs({
+        fromBlock: fromBlock,
+        toBlock: toBlock,
+        topics: [event],
+      });
+  
+      //const value = ethers.AbiCoder.defaultAbiCoder().decode(['uint256'], logs[0].data);
+
+      return logs;
+      
+    } catch (err) {
+      console.error("Error fetching ERC-20 transfers:", err);
+      throw err;
+    }
+  }
 
   //binary search function that gets the first block created 3 months ago
   async getFirstBlock(): Promise<Block> {

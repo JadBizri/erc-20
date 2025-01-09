@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE "Token" ALTER COLUMN "value" SET DATA TYPE BIGINT;

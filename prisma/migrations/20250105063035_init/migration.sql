@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE "Token" ALTER COLUMN "tokenId" DROP NOT NULL,
-ALTER COLUMN "metadata" DROP NOT NULL;
