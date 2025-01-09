@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { AppService } from '../services/app.service';
 
 @Controller()
@@ -13,10 +13,5 @@ export class AppController {
   @Get('first-block')
   getBlockByNum() {
     return this.appService.getFirstBlock();
-  }
-
-  @Get('transfers')
-  getErcTransfers() {
-    return this.appService.fetchErcTransferLogs();
   }
 }

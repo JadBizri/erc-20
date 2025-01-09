@@ -1,12 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
-import { AbiCoder, Block, ethers, Interface, Log } from 'ethers';
+import { Block, ethers, Log } from 'ethers';
 
 @Injectable()
-export class AppService {
-  private readonly alchemyApiKey: string = this.configService.get<string>('ALCHEMY_API_KEY');
-  private readonly url: string = "https://eth-mainnet.g.alchemy.com/v2/" + this.alchemyApiKey;
+export class AppService implements OnModuleInit {
+  onModuleInit() {
+    this.fetchErc20Transfers();
+  }
+
+  private readonly alchemyApiKey: string =
+    this.configService.get<string>('ALCHEMY_API_KEY');
+  private readonly url: string =
+    'https://eth-mainnet.g.alchemy.com/v2/' + this.alchemyApiKey;
   private readonly threeMonthsInSecs: number = 7776000;
   private prisma = new PrismaClient();
   private provider = new ethers.JsonRpcProvider(this.url);
@@ -14,135 +20,194 @@ export class AppService {
   constructor(private configService: ConfigService) {}
 
   async getBlock(): Promise<Block> {
-    return await this.provider.send('eth_getBlockByNumber', ["0x13f447e", false])
+    return await this.provider.send('eth_getBlockByNumber', [
+      '0x13f447e',
+      false,
+    ]);
   }
 
-
-  async fetchErcTransferLogs(): Promise<Array<Log>> {
+  async fetchErc20Transfers(): Promise<void> {
     try {
-      const event = ethers.id("Transfer(address,address,uint256)");
+      const latestBlock = await this.provider.getBlockNumber();
+      const startBlockHex = await this.getLastProcessedBlock();
+      const startBlock = Number(startBlockHex.toString());
+      const event = ethers.id('Transfer(address,address,uint256)');
+      const batchSize = 100;
 
-      const fromBlock = (await this.getFirstBlock()).number;
-      const toBlock = parseInt(fromBlock.toString()) + 100
+      for (
+        let fromBlock = startBlock;
+        fromBlock <= latestBlock;
+        fromBlock += batchSize
+      ) {
+        const toBlock = Math.min(fromBlock + batchSize - 1, latestBlock);
 
-      const logs = await this.provider.getLogs({
-        fromBlock: fromBlock,
-        toBlock: toBlock,
-        topics: [event],
-      });
-  
-      //const value = ethers.AbiCoder.defaultAbiCoder().decode(['uint256'], logs[0].data);
+        console.log(`\nProcessing blocks ${fromBlock} to ${toBlock}...`);
 
-      return logs;
-      
+        const logs = await this.provider.getLogs({
+          fromBlock,
+          toBlock,
+          topics: [event],
+        });
+
+        await this.storeLogs(logs);
+
+        await this.updateLastProcessedBlock(toBlock);
+
+        console.log(`Processed blocks ${fromBlock} to ${toBlock}`);
+      }
     } catch (err) {
-      console.error("Error fetching ERC-20 transfers:", err);
+      console.error('Error fetching historical logs and storing them:', err);
       throw err;
     }
   }
 
-  //binary search function that gets the first block created 3 months ago
-  async getFirstBlock(): Promise<Block> {
-    try{
+  async storeLogs(logs: Array<Log>): Promise<void> {
+    try {
+      const transfers = await logs.map((log) => ({
+        transactionHash: log.transactionHash,
+        blockNumber: log.blockNumber,
+        tokenAddress: log.address,
+        fromAddress: log.topics[1],
+        toAddress: log.topics[2],
+        amount: log.data,
+      }));
+
+      await this.prisma.transfer.createMany({
+        data: transfers,
+        skipDuplicates: true,
+      });
+    } catch (error) {
+      console.error('Error storing logs:', error);
+      throw error;
+    }
+  }
+
+  async getLastProcessedBlock(): Promise<number> {
+    const lastBlock = await this.prisma.sync_Data.findUnique({
+      where: { key: 'last_processed_block' },
+    });
+
+    if (!lastBlock) {
+      return await this.getFirstBlock();
+    }
+
+    return lastBlock.number;
+  }
+
+  async updateLastProcessedBlock(blockNumber: number): Promise<void> {
+    await this.prisma.sync_Data.upsert({
+      where: { key: 'last_processed_block' },
+      update: { number: blockNumber },
+      create: { key: 'last_processed_block', number: blockNumber },
+    });
+  }
+
+  //binary search function that gets the first block number created 3 months ago
+  async getFirstBlock(): Promise<number> {
+    try {
       let left = 0;
       let right = await this.provider.getBlockNumber(); //latest block number
-      const targetTimestamp = await this.getBlockTimestampByNumber(right) - this.threeMonthsInSecs; //timestamp of 3 months ago
-      
+      const targetTimestamp =
+        (await this.getBlockTimestampByNumber(right)) - this.threeMonthsInSecs; //timestamp of 3 months ago
+
       let targetBlock: Block;
 
-      while(left <= right) {
-        const mid = Math.floor((left + right) / 2)
-        targetBlock = await this.provider.send('eth_getBlockByNumber', ['0x' + (mid).toString(16), false]);
+      while (left <= right) {
+        const mid = Math.floor((left + right) / 2);
+        targetBlock = await this.provider.send('eth_getBlockByNumber', [
+          '0x' + mid.toString(16),
+          false,
+        ]);
         const midTimestamp = targetBlock.timestamp;
 
-        if(midTimestamp === targetTimestamp) {
-          return targetBlock;
+        if (midTimestamp === targetTimestamp) {
+          return targetBlock.number;
         }
 
         if (midTimestamp < targetTimestamp) {
           left = mid + 1;
         } else right = mid - 1;
       }
-      return targetBlock;
-    }
-    catch(err) {
+      return targetBlock.number;
+    } catch (err) {
       throw err;
     }
   }
 
   async getBlockTimestampByNumber(blockNum: number): Promise<number> {
-    return await this.provider.send('eth_getBlockByNumber', ['0x' + (blockNum).toString(16), false])
-    .then((block) => {
-      return block.timestamp; 
-    })
-    .catch((err) => {
-      console.error("ERROR: ", err)
-      throw err;
-    })
+    return await this.provider
+      .send('eth_getBlockByNumber', ['0x' + blockNum.toString(16), false])
+      .then((block) => {
+        return block.timestamp;
+      })
+      .catch((err) => {
+        console.error('ERROR: ', err);
+        throw err;
+      });
   }
 }
-  // async getFirstBlock(): Promise<Block> {
-  //   const firstBlockTimestamp = new Date(Date.now() - this.threeMonthsInMs);
-  //   try {
-  //     const response = await Moralis.EvmApi.block.getDateToBlock({
-  //       chain: '0x1',
-  //       date: firstBlockTimestamp,
-  //     });
+// async getFirstBlock(): Promise<Block> {
+//   const firstBlockTimestamp = new Date(Date.now() - this.threeMonthsInMs);
+//   try {
+//     const response = await Moralis.EvmApi.block.getDateToBlock({
+//       chain: '0x1',
+//       date: firstBlockTimestamp,
+//     });
 
-  //     if (!response?.result?.block) {
-  //       throw new Error('No block data found for the given date');
-  //     }
+//     if (!response?.result?.block) {
+//       throw new Error('No block data found for the given date');
+//     }
 
-  //     const block = await this.alchemy.core.getBlock(response.result.block);
-  //     return block;
-  //   } catch (error) {
-  //     console.error(error);
-  //   }
-  // }
+//     const block = await this.alchemy.core.getBlock(response.result.block);
+//     return block;
+//   } catch (error) {
+//     console.error(error);
+//   }
+// }
 
-  //only getting 1000
-  // async getErcTransfers(): Promise<any[]> {
-  //   try {
-  //     const firstBlock = await this.getFirstBlock();
-  //     const params: AssetTransfersParams = {
-  //       fromBlock: '0x' + firstBlock.number.toString(16),
-  //       toBlock: 'latest',
-  //       category: [AssetTransfersCategory.ERC20],
-  //     };
-  //     const transfers = await this.alchemy.core.getAssetTransfers(params);
-  //     return transfers.transfers;
-  //   } catch (error) {
-  //     console.error('Error fetching ERC-20 transfers:', error);
-  //     throw error;
-  //   }
-  // }
+//only getting 1000
+// async getErcTransfers(): Promise<any[]> {
+//   try {
+//     const firstBlock = await this.getFirstBlock();
+//     const params: AssetTransfersParams = {
+//       fromBlock: '0x' + firstBlock.number.toString(16),
+//       toBlock: 'latest',
+//       category: [AssetTransfersCategory.ERC20],
+//     };
+//     const transfers = await this.alchemy.core.getAssetTransfers(params);
+//     return transfers.transfers;
+//   } catch (error) {
+//     console.error('Error fetching ERC-20 transfers:', error);
+//     throw error;
+//   }
+// }
 
-  // async storeTokens(): Promise<string> {
-  //   try {
-  //     const tokens = await this.getErcTransfers();
-  //     const formattedTokens = tokens.map(token => ({
-  //       blockNum: token.blockNum,
-  //       uniqueId: token.uniqueId,
-  //       hash: token.hash,
-  //       from: token.from,
-  //       to: token.to,
-  //       value: token.value || null,
-  //       tokenId: token.tokenId || null,
-  //       asset: token.asset || null,
-  //       rawContract: token.rawContract,
-  //       metadata: token.metadata || null,
-  //     }));
-  //     await this.prisma.token.deleteMany({})
-  //     await this.prisma.token.createMany({
-  //       data: formattedTokens,
-  //       skipDuplicates: true,
-  //     });
-  //     return "Successfully fetched and stored ERC20 token transfers"
-  //   }
-  //   catch(error) {
-  //     throw error;
-  //   }
-  // }
+// async storeTokens(): Promise<string> {
+//   try {
+//     const tokens = await this.getErcTransfers();
+//     const formattedTokens = tokens.map(token => ({
+//       blockNum: token.blockNum,
+//       uniqueId: token.uniqueId,
+//       hash: token.hash,
+//       from: token.from,
+//       to: token.to,
+//       value: token.value || null,
+//       tokenId: token.tokenId || null,
+//       asset: token.asset || null,
+//       rawContract: token.rawContract,
+//       metadata: token.metadata || null,
+//     }));
+//     await this.prisma.token.deleteMany({})
+//     await this.prisma.token.createMany({
+//       data: formattedTokens,
+//       skipDuplicates: true,
+//     });
+//     return "Successfully fetched and stored ERC20 token transfers"
+//   }
+//   catch(error) {
+//     throw error;
+//   }
+// }
 
 //   async getTokenBalances(address): Promise<any[]> {
 //     try {
@@ -163,7 +228,6 @@ export class AppService {
 //       throw error;
 //     }
 //   }
-
 
 // async getErcTransfers(): Promise<any[]> {
 //   try {

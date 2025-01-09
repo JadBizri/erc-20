@@ -13,20 +13,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Token {
-  id          String    @id @default(uuid())
-  address     String    @unique
-  name        String?
-  symbol      String?
-  transfers   Transfer[]
+model Transfer {
+  transactionHash String  @id @unique
+  blockNumber     Int?
+  fromAddress     String?
+  toAddress       String?
+  amount          String?
+  tokenAddress    String?
 }
 
-model Transfer {
-  transactionHash  String   @unique @id
-  blockNumber      Int
-  fromAddress      String
-  toAddress        String
-  amount           BigInt
-  tokenAddress     String
-  token            Token    @relation(fields: [tokenAddress], references: [address])
+model Sync_Data {
+  key    String @unique
+  number Int
 }
