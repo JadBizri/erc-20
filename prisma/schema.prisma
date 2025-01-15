@@ -13,9 +13,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Block {
+  number    Int        @id @unique
+  transfers Transfer[]
+}
+
 model Transfer {
   transactionHash String  @id @unique
-  blockNumber     Int?
+  block           Block   @relation(fields: [blockNumber], references: [number])
+  blockNumber     Int
   fromAddress     String?
   toAddress       String?
   amount          String?
