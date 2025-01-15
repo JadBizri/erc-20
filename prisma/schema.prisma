@@ -27,8 +27,3 @@ model Transfer {
   amount          String?
   tokenAddress    String?
 }
-
-model Sync_Data {
-  key    String @unique
-  number Int
-}
