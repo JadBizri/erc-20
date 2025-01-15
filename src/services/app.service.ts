@@ -50,9 +50,6 @@ export class AppService implements OnModuleInit {
         });
 
         await this.storeLogs(logs);
-
-        await this.updateLastProcessedBlock(toBlock);
-
         console.log(`Processed blocks ${fromBlock} to ${toBlock}`);
       }
     } catch (err) {
@@ -60,7 +57,7 @@ export class AppService implements OnModuleInit {
       throw err;
     }
   }
- 
+
   async storeLogs(logs: Array<Log>): Promise<void> {
     try {
       const transfers = await logs
@@ -76,6 +73,17 @@ export class AppService implements OnModuleInit {
         }
       });
 
+      // Get all unique block numbers
+      const uniqueBlockNumbers = [...new Set(transfers.map((transfer) => transfer.blockNumber))];
+
+      for (const blockNumber of uniqueBlockNumbers) {
+        await this.prisma.block.upsert({
+          where: { number: blockNumber },
+          update: {},
+          create: { number: blockNumber },
+        });
+      }
+
       await this.prisma.transfer.createMany({
         data: transfers,
         skipDuplicates: true,
@@ -87,8 +95,11 @@ export class AppService implements OnModuleInit {
   }
 
   async getLastProcessedBlock(): Promise<number> {
-    const lastBlock = await this.prisma.sync_Data.findUnique({
-      where: { key: 'last_processed_block' },
+    const lastBlock = await this.prisma.block.findFirst({
+      orderBy: {
+        number: 'desc'
+      },
+      take: 1
     });
 
     if (!lastBlock) {
@@ -96,14 +107,6 @@ export class AppService implements OnModuleInit {
     }
 
     return lastBlock.number;
-  }
-
-  async updateLastProcessedBlock(blockNumber: number): Promise<void> {
-    await this.prisma.sync_Data.upsert({
-      where: { key: 'last_processed_block' },
-      update: { number: blockNumber },
-      create: { key: 'last_processed_block', number: blockNumber },
-    });
   }
 
   //binary search function that gets the first block number created 3 months ago
