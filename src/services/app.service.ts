@@ -60,17 +60,21 @@ export class AppService implements OnModuleInit {
       throw err;
     }
   }
-
+ 
   async storeLogs(logs: Array<Log>): Promise<void> {
     try {
-      const transfers = await logs.map((log) => ({
-        transactionHash: ethers.stripZerosLeft(log.transactionHash),
-        blockNumber: log.blockNumber,
-        tokenAddress: log.address,
-        fromAddress: log.topics[1] ? ethers.stripZerosLeft(log.topics[1]) : null,
-        toAddress: log.topics[2] ? ethers.stripZerosLeft(log.topics[2]) : null,
-        amount: log.data ? ethers.stripZerosLeft(log.data) : null,
-      }));
+      const transfers = await logs
+      .filter((log) => log.topics.length === 3)
+      .map((log) => {
+        return {
+          transactionHash: ethers.stripZerosLeft(log.transactionHash),
+          blockNumber: log.blockNumber,
+          tokenAddress: log.address,
+          fromAddress: log.topics[1] ? ethers.stripZerosLeft(log.topics[1]) : null,
+          toAddress: log.topics[2] ? ethers.stripZerosLeft(log.topics[2]) : null,
+          amount: ethers.AbiCoder.defaultAbiCoder().decode(['uint256'], log.data).toString()
+        }
+      });
 
       await this.prisma.transfer.createMany({
         data: transfers,
