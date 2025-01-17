@@ -1,47 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Block, ethers, Log } from 'ethers';
-import { DatabaseService } from './database.service';
 
 @Injectable()
 export class TransfersService {
 
-  constructor(private configService: ConfigService, private dbService: DatabaseService) {}
+  constructor(private configService: ConfigService) {}
 
   private readonly url: string ='https://eth-mainnet.g.alchemy.com/v2/' + this.configService.get<string>('ALCHEMY_API_KEY');
   private provider = new ethers.JsonRpcProvider(this.url);
 
-  async fetchTransferLogs(): Promise<void> {
-      try {
-        const latestBlock = await this.provider.getBlockNumber();
-        let startBlockHex = await this.dbService.getLastProcessedBlock();
-        if(startBlockHex === 0) {
-          startBlockHex = await this.getFirstBlock()
-        }
-        const startBlock = Number(startBlockHex.toString());
-        const event = ethers.id('Transfer(address,address,uint256)');
-        const batchSize = 100;
-  
-        for (let fromBlock = startBlock; fromBlock <= latestBlock; fromBlock += batchSize) {
-          const toBlock = Math.min(fromBlock + batchSize - 1, latestBlock);
-  
-          console.log(`\nProcessing blocks ${fromBlock} to ${toBlock}...`);
-  
-          const logs = await this.provider.getLogs({
-            fromBlock,
-            toBlock,
-            topics: [event],
-          });
+  async fetchTransferLogs(startBlock: number, endBlock: number): Promise<Array<any>> {
+    const event = ethers.id('Transfer(address,address,uint256)');
 
-          const processedLogs = this.processLogs(logs);
-          await this.dbService.storeLogs(processedLogs);
-          
-          console.log(`Processed blocks ${fromBlock} to ${toBlock}`);
-        }
-      } catch (err) {
-        console.error('Error fetching historical logs and storing them:', err);
-        throw err;
-      }
+    const logs = await this.provider.getLogs({
+      fromBlock: startBlock,
+      toBlock: endBlock,
+      topics: [event],
+    });
+
+    //filter out non erc-20 tokens and filter out what we need
+    return this.processLogs(logs);
   }
 
   processLogs(logs: Array<Log>): Array<any> {
@@ -57,6 +36,10 @@ export class TransfersService {
         amount: ethers.AbiCoder.defaultAbiCoder().decode(['uint256'], log.data).toString()
       }
     });
+  }
+
+  async getLatestBlockNumber(): Promise<number> {
+    return await this.provider.getBlockNumber()
   }
 
   //binary search function that gets the first block number created 3 months ago
