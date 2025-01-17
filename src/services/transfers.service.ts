@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { error } from 'console';
 import { Block, ethers, Log } from 'ethers';
 
 @Injectable()
