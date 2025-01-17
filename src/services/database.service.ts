@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { Log, ethers } from 'ethers';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
