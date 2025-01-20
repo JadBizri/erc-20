@@ -29,7 +29,17 @@ export class AppService implements OnModuleInit {
 
       console.log(`\nProcessing blocks ${fromBlock} to ${toBlock}...`);
 
-      const logs = await this.tService.fetchTransferLogs(fromBlock, toBlock);
+      const allLogs = await this.tService.fetchTransferLogs(fromBlock, toBlock);
+
+      const logs = allLogs
+      .filter((log) => !log.errorMessage)
+      .map((log) => log)
+
+      allLogs.forEach(async log => {
+        if(log.errorMessage) {
+          await this.dbService.storeFailedLog(log)
+        }
+      });
 
       await this.dbService.storeLogs(logs);
 
