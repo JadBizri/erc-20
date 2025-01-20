@@ -30,26 +30,49 @@ export class TransfersService {
       });
   }
 
-  //filter out non erc-20 tokens and filter out what we need
+  //filter out non erc-20 tokens and validate log 
   processLogs(logs: Array<Log>): Array<any> {
     return logs
       .filter((log) => log.topics.length === 3)
       .map((log) => {
-        return {
-          transactionHash: ethers.stripZerosLeft(log.transactionHash),
-          blockNumber: log.blockNumber,
-          tokenAddress: log.address,
-          fromAddress: log.topics[1]
-            ? ethers.stripZerosLeft(log.topics[1])
-            : null,
-          toAddress: log.topics[2]
-            ? ethers.stripZerosLeft(log.topics[2])
-            : null,
-          amount: ethers.AbiCoder.defaultAbiCoder()
-            .decode(['uint256'], log.data)
-            .toString(),
-        };
-      });
+        try{
+          if (!log.transactionHash) {
+            throw new Error("Missing or invalid 'transactionHash' in log.");
+          }
+          
+          if (!log.blockNumber) {
+            throw new Error("Missing or invalid 'blockNumber' in log.");
+          }
+          
+          if (!log.address) {
+            throw new Error("Missing or invalid 'address' in log.");
+          }
+
+          const decodedAmount = ethers.AbiCoder.defaultAbiCoder().decode(['uint256'], log.data).toString();
+          if (!decodedAmount) {
+            throw new Error("Decoded 'amount' is invalid or empty.");
+          }
+
+          return {
+            transactionHash: ethers.stripZerosLeft(log.transactionHash),
+            blockNumber: log.blockNumber,
+            tokenAddress: log.address,
+            fromAddress: log.topics[1]
+              ? ethers.stripZerosLeft(log.topics[1])
+              : null,
+            toAddress: log.topics[2]
+              ? ethers.stripZerosLeft(log.topics[2])
+              : null,
+            amount: decodedAmount,
+          };
+        } catch(error) {
+          console.log(`\nSkipping log due to error: ${error.message}.\nLog: \n${JSON.stringify(log)}\n`);
+          return {
+            logData: log.toJSON(),
+            errorMessage: error.message
+          };
+        }
+      })
   }
 
   async getLatestBlockNumber(): Promise<number> {
