@@ -41,4 +41,10 @@ export class DatabaseService {
 
     return lastBlock ? lastBlock.number : 0;
   }
+
+  async storeFailedLog(log): Promise<void> {
+    await this.prisma.failedLog.create({
+      data: log
+    })
+  }
 }
