@@ -25,11 +25,11 @@ model Transfer {
   fromAddress     String?
   toAddress       String?
   amount          String?
-  tokenAddress    String?
+  tokenAddress    String
 }
 
 model FailedLog {
-  id              Int       @id @default(autoincrement())
-  logData         Json
-  errorMessage    String
+  id           Int    @id @default(autoincrement())
+  logData      Json
+  errorMessage String
 }
