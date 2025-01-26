@@ -33,3 +33,10 @@ model FailedLog {
   logData      Json
   errorMessage String
 }
+
+model Token {
+  tokenAddress String  @id @unique
+  decimals     Int?
+  name         String?
+  symbol       String?
+}
