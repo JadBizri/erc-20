@@ -47,4 +47,16 @@ export class DatabaseService {
       data: log
     })
   }
+
+  async storeTokenData(tokensData: Array<{tokenAddress: string; name: string; decimals: number; symbol: string;}>): Promise<void> {
+    await this.prisma.token.createMany({
+      data: tokensData,
+      skipDuplicates: true
+    })
+    .then()
+    .catch((error) => {
+      console.error("ERROR STORING TOKEN METADATA: " + error)
+      throw error
+    })
+  }
 }
