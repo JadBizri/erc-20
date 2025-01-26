@@ -75,6 +75,21 @@ export class TransfersService {
       })
   }
 
+  async getTokenMetadata(address: String): Promise<void> {
+    return await this.provider
+    .send('alchemy_getTokenMetadata', [address])
+    .then((tokenData) => {
+      delete tokenData.logo
+      return {
+        ...tokenData,
+        tokenAddress: address
+      }})
+    .catch((error) => {
+      console.error("ERROR FETCHING TOKEN METADATA: " + error);
+      throw error;
+    })
+  }
+
   async getLatestBlockNumber(): Promise<number> {
     return await this.provider
       .getBlockNumber()
