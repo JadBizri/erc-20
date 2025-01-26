@@ -20,11 +20,12 @@ export class AppService implements OnModuleInit {
     }
     const startBlock = Number(startBlockHex.toString());
 
-    for (
-      let fromBlock = startBlock;
-      fromBlock <= latestBlock;
-      fromBlock += batch
-    ) {
+    this.fetchTransfersInBatches(latestBlock, startBlock, batch);
+    
+  }
+
+  async fetchTransfersInBatches(latestBlock: number, startBlock: number, batch: number) {
+    for (let fromBlock = startBlock; fromBlock <= latestBlock; fromBlock += batch) {
       const toBlock = Math.min(fromBlock + batch - 1, latestBlock);
 
       console.log(`\nProcessing blocks ${fromBlock} to ${toBlock}...`);
@@ -34,16 +35,50 @@ export class AppService implements OnModuleInit {
       const logs = allLogs
       .filter((log) => !log.errorMessage)
       .map((log) => log)
+      
+      await Promise.all(
+        allLogs.map(async (log) => {
+          if (log.errorMessage) {
+            await this.dbService.storeFailedLog(log);
+          }
+        })
+      );
 
-      allLogs.forEach(async log => {
-        if(log.errorMessage) {
-          await this.dbService.storeFailedLog(log)
-        }
-      });
+      const tokenAddresses = Array.from(
+        new Set(logs.map((log) => log.tokenAddress))
+      );
+      const batchSize = 5;
+      const tokenMetadata = await this.getTokenMetadataInBatches(tokenAddresses, batchSize);
+
+      await this.dbService.storeTokenData(tokenMetadata);
 
       await this.dbService.storeLogs(logs);
 
       console.log(`Processed blocks ${fromBlock} to ${toBlock}`);
     }
+  }
+
+  async getTokenMetadataInBatches(addresses: string[], batchSize: number): Promise<any[]> {
+    const results: any[] = [];
+  
+    for (let i = 0; i < addresses.length; i += batchSize) {
+      const batch = addresses.slice(i, i + batchSize);
+  
+      const batchResults = await Promise.all(
+        batch.map(async (address) => {
+          try {
+            const metadata = await this.tService.getTokenMetadata(address);
+            return metadata;
+          } catch (error) {
+            console.error(`Failed to fetch metadata for address: ${address}`, error);
+            return null;
+          }
+        })
+      );
+  
+      results.push(...batchResults);
+    }
+  
+    return results.filter((result) => result !== null);
   }
 }
