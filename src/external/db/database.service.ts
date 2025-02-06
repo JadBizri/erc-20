@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Token } from '@prisma/client';
+import { TransferLogDto } from 'src/core/dto/transfer-log.dto';
 
 @Injectable()
 export class DatabaseService {
@@ -58,5 +59,40 @@ export class DatabaseService {
       console.error("ERROR STORING TOKEN METADATA: " + error)
       throw error
     })
+  }
+
+  async receiver(walletAddress: string): Promise<Array<TransferLogDto>> {
+    return await this.prisma.transfer.findMany({
+      where: {
+        toAddress: walletAddress
+      }
+    })
+    .then((logs) => logs)
+    .catch((error) => {
+      console.error("Error getting matching logs: " + error.message)
+      throw error;
+    })
+  }
+
+  async sender(walletAddress: string): Promise<Array<TransferLogDto>> {
+    return await this.prisma.transfer.findMany({
+      where: {
+        fromAddress: walletAddress
+      }
+    })
+    .then((logs) => logs)
+    .catch((error) => {
+      console.error("Error getting matching logs: " + error.message)
+      throw error;
+    })
+  }
+
+  async getToken(tokenAddress: string): Promise<Token> {
+    const token = await this.prisma.token.findUnique({
+      where: {
+        tokenAddress: tokenAddress
+      }
+    })
+    return token
   }
 }
