@@ -1,7 +1,13 @@
-import { Controller, Get } from '@nestjs/common';
-import { AppService } from '../core/services/app.service';
+import { Controller, Get, Param } from '@nestjs/common';
+import { BalanceService } from '../core/services/balance.service';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(private readonly balanceService: BalanceService) {}
+
+  //TODO: ENSURE wallet address
+  @Get('logs/:walletAddress')
+  getLogs(@Param('walletAddress') walletAddress: string) {
+    return this.balanceService.tokenBalances(walletAddress);
+  }
 }
