@@ -4,6 +4,7 @@ import { AppService } from './core/services/app.service';
 import { ConfigModule } from '@nestjs/config';
 import { TransfersService } from './external/ethers/transfers.service';
 import { DatabaseService } from './external/db/database.service';
+import { BalanceService } from './core/services/balance.service';
 
 @Module({
   imports: [
@@ -12,6 +13,6 @@ import { DatabaseService } from './external/db/database.service';
     }),
   ],
   controllers: [AppController],
-  providers: [AppService, TransfersService, DatabaseService],
+  providers: [AppService, TransfersService, DatabaseService, BalanceService],
 })
 export class AppModule {}
