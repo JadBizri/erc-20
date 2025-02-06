@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Block, ethers, Log } from 'ethers';
+import { TransferLogDto } from 'src/core/dto/transfer-log.dto';
 
 @Injectable()
 export class TransfersService {
@@ -31,7 +32,7 @@ export class TransfersService {
   }
 
   //filter out non erc-20 tokens and validate log 
-  processLogs(logs: Array<Log>): Array<any> {
+  processLogs(logs: Array<Log>): Array<TransferLogDto> {
     return logs
       .filter((log) => log.topics.length === 3)
       .map((log) => {
@@ -64,13 +65,10 @@ export class TransfersService {
               ? ethers.stripZerosLeft(log.topics[2])
               : null,
             amount: decodedAmount,
-          };
+          } as TransferLogDto;
         } catch(error) {
-          console.log(`\nSkipping log due to error: ${error.message}.\nLog: \n${JSON.stringify(log)}\n`);
-          return {
-            logData: log.toJSON(),
-            errorMessage: error.message
-          };
+          console.error(`\nSkipping log due to error: ${error.message}.\nLog: \n${JSON.stringify(log)}\n`);
+          return null;
         }
       })
   }

@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { TransfersService } from './transfers.service';
-import { DatabaseService } from './database.service';
+import { TransfersService } from '../../external/ethers/transfers.service';
+import { DatabaseService } from '../../external/db/database.service';
 
 @Injectable()
 export class AppService implements OnModuleInit {
